@@ -3,8 +3,6 @@ pragma solidity >=0.4.21;
 import "./EllipticCurve.sol";
 import "./ECRecovery.sol";
 
-
-
 library ECC {
 
     // MessageHash is the hash of the message that should have been signed

@@ -4,6 +4,7 @@ var ECRecovery = artifacts.require("ECRecovery");
 
 var BankAccounts = artifacts.require("BankAccounts");
 var ECCLibrary = artifacts.require("ECC");
+var HelperLibrary = artifacts.require("HelperLibrary");
 
 module.exports = function(deployer) {
 
@@ -14,7 +15,10 @@ module.exports = function(deployer) {
     deployer.link(ECRecovery, ECCLibrary);
 
     deployer.deploy(ECCLibrary);
-
     deployer.link(ECCLibrary, BankAccounts);
+
+    deployer.deploy(HelperLibrary);
+    deployer.link(HelperLibrary, BankAccounts);
+
     deployer.deploy(BankAccounts, 0);
 }

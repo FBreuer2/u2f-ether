@@ -1,11 +1,13 @@
 pragma solidity > 0.4.21;
 
 import "./ECC.sol";
+import "./HelperLibrary.sol";
 
 
 contract BankAccounts {
     bytes32 _identity;
     address _owner;
+    ChainType _deployedChainType;
     uint _randNonce;
 
     enum ChainType { Sim, Test, Main }
@@ -48,6 +50,7 @@ contract BankAccounts {
     constructor(ChainType chainType) public {
 		_randNonce = 0;
 		_owner = msg.sender;
+        _deployedChainType = chainType;
         _identity = "tttttttttttttttttttttttttttttttt";
 	}
 
@@ -70,7 +73,8 @@ contract BankAccounts {
                                                   bytes userPublicKey, bytes attestationKey, bytes signature, SigningAlgorithm signingAlgorithm) public {
 
         require(_bankAccounts[msg.sender].isVerified == false, "Only unverified accounts can respond to challenges");
-        // XXX: check if the challenge matches
+        require(HelperLibrary.verifyCorrectChallenge(clientData, _bankAccounts[msg.sender].registrationChallenge),
+                                                     "Wrong challenge in ClientData");
 
         // check if the application identity matches
         require(sha256(abi.encodePacked(_identity)) == applicationParameter, "Application identity does not match.");
@@ -119,6 +123,7 @@ contract BankAccounts {
 
 
     function transferFunds(address to, uint64 amount) public payable returns(bytes32 challenge) {
+        // XXX: check balance here
         //require(_bankAccounts[msg.sender].currentBalance >= amount, "Not enough funds!");
         //_bankAccounts[msg.sender].currentBalance -= amount;
 
@@ -150,9 +155,8 @@ contract BankAccounts {
 
 
     function verifyTransaction(bytes32 applicationParameter, bytes1 userPresence, bytes32 counter,
-                               bytes clientData, bytes signature, SigningAlgorithm signingAlgorithm) public payable returns(bool success) {
+                               bytes clientData, bytes signature, SigningAlgorithm signingAlgorithm, bytes32 transactionChallenge) public payable {
         require(_bankAccounts[msg.sender].isVerified == true, "Only verified accounts can respond to transaction challenges");
-        // XXX: check if the challenge matches
 
         // check if the application identity matches
         require(sha256(abi.encodePacked(_identity)) == applicationParameter, "Application identity does not match.");
@@ -189,17 +193,18 @@ contract BankAccounts {
 
         if (goodSignature) {
             for (uint i = 0; i<_bankAccounts[msg.sender]._delayedTransactions.length; i++) {
-                if (_bankAccounts[msg.sender]._delayedTransactions[i].transactionChallenge == challengeParameter) {
+                if (_bankAccounts[msg.sender]._delayedTransactions[i].transactionChallenge == transactionChallenge) {
+                    require(HelperLibrary.verifyCorrectChallenge(clientData,
+                                                                transactionChallenge),
+                                                                "Wrong challenge in ClientData");
+
                     _bankAccounts[msg.sender]._delayedTransactions[i].verified = true;
                     emit NewTransactionStatus(_bankAccounts[msg.sender]._delayedTransactions[i].beneficiary,
                                                _bankAccounts[msg.sender]._delayedTransactions[i].amount,
                                                true);
-                    return true;
                 }
             }
         }
-
-        return false;
     }
 
     function getRandom() private view returns (bytes32 random) {

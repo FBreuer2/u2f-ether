@@ -122,7 +122,7 @@ contract BankAccounts {
     }
 
 
-    function transferFunds(address to, uint64 amount) public payable returns(bytes32 challenge) {
+    function transferFunds(address to, uint64 amount) public payable {
         // XXX: check balance here
         //require(_bankAccounts[msg.sender].currentBalance >= amount, "Not enough funds!");
         //_bankAccounts[msg.sender].currentBalance -= amount;
@@ -150,12 +150,12 @@ contract BankAccounts {
             _bankAccounts[msg.sender]._delayedTransactions.push(newTransaction);
 
         // then create the hash that a valid response should have
-        return newTransaction.transactionChallenge;
+        emit NewTransactionsChallenge(msg.sender, newTransaction.transactionChallenge);
     }
 
 
-    function verifyTransaction(bytes32 applicationParameter, bytes1 userPresence, bytes32 counter,
-                               bytes clientData, bytes signature, SigningAlgorithm signingAlgorithm, bytes32 transactionChallenge) public payable {
+    function verifyTransaction(bytes32 applicationParameter, bytes1 userPresence, bytes4 counter,
+                               bytes clientData, bytes signature, bytes32 transactionChallenge, SigningAlgorithm signingAlgorithm) public payable {
         require(_bankAccounts[msg.sender].isVerified == true, "Only verified accounts can respond to transaction challenges");
 
         // check if the application identity matches
@@ -202,9 +202,15 @@ contract BankAccounts {
                     emit NewTransactionStatus(_bankAccounts[msg.sender]._delayedTransactions[i].beneficiary,
                                                _bankAccounts[msg.sender]._delayedTransactions[i].amount,
                                                true);
+
+                    return;
                 }
             }
         }
+
+        emit NewTransactionStatus(_bankAccounts[msg.sender]._delayedTransactions[i].beneficiary,
+                                  _bankAccounts[msg.sender]._delayedTransactions[i].amount,
+                                  false);
     }
 
     function getRandom() private view returns (bytes32 random) {

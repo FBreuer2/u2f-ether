@@ -22,8 +22,10 @@ contract("BankAccounts", async (accounts) => {
     let appID = Buffer.from(String(appIDRaw).slice(2), 'hex');
 
     await registerToken(appID);
-    let transactionChallenge = await contract.transferFunds(accounts[1], 1000);
-    await verifyTransaction(appID, transactionChallenge);
+    let transactionChallengeTx = await contract.transferFunds(accounts[1], 1000);
+    console.log('SECP256k transfer funds gas usage: ' + transactionChallengeTx.receipt.gasUsed)
+    let challenge = Buffer.from(String(transactionChallengeTx.logs[0].args.challenge).slice(2), "hex");
+    await verifyTransaction(appID, challenge);
 
 
     
@@ -48,15 +50,34 @@ contract("BankAccounts", async (accounts) => {
       'registeredKeys': [registeredKey]
     };
 
-    reponse = await token.HandleSignRequest(verificationRequest);
+    response = await token.HandleSignRequest(verificationRequest);
 
-    let userPresence = getUserPresenceByte(response)
-    let counter = getCounter(response)
+    let responseObject = getResponseObject(response.signatureData)
+    let calculatedAppID = '0x' + sha2(appID);
+    let userPresence = '0x' + responseObject.userPresence.toString('hex')
+    let counter = '0x' + responseObject.counter.toString('hex')
+
+    let clientData = '0x' + Buffer.from(response.clientData, 'base64').toString('hex')
+    let signature = '0x' + responseObject.signature.toString('hex')
+
+    let tx = await contract.verifyTransaction(calculatedAppID, userPresence, counter,
+      clientData, signature, '0x' + challenge.toString('hex'), 0)
+
+    console.log('SECP256k verification gas usage: ' + tx.receipt.gasUsed)
+
+    assert.equal(true, tx.logs[0].args.verified)
+
+  }
 
 
-    //verifyTransaction(bytes32 applicationParameter, bytes1 userPresence, bytes32 counter,
-    //  bytes clientData, bytes signature, SigningAlgorithm signingAlgorithm, bytes32 transactionChallenge)
+  function getResponseObject(signatureData) {
+    let dataBuf = URLSafeBase64.decode(signatureData);
 
+    return {
+      'userPresence': dataBuf.slice(0, 1),
+      'counter': dataBuf.slice(1, 5),
+      'signature': dataBuf.slice(5),
+    }
   }
 
 
@@ -80,14 +101,13 @@ contract("BankAccounts", async (accounts) => {
     let clientData = '0x' + Buffer.from(response.clientData, 'base64').toString('hex')
     let signature = '0x' + getSignature(response.registrationData);
     let keyHandle = '0x' + response.keyHandle
-    console.log('keyHandle: ' + keyHandle)
     let publicKey = '0x' + getUserPublicKey(response.registrationData);
     let attestationKey = '0x' + getAttestationPublicKey(response.registrationData);
 
     let answerTX = await contract.answerRegistrationChallenge(calculatedAppID, clientData, 
                                                               keyHandle, publicKey, attestationKey, signature, 0);
 
-    console.log('gas usage: ' + answerTX.receipt.cumulativeGasUsed)
+    console.log('SECP256k registration gas usage: ' + answerTX.receipt.gasUsed)
     assert.equal(answerTX.logs[0].args.verified, true);
   }
 

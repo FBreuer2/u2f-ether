@@ -1,6 +1,6 @@
 const BankAccounts = artifacts.require('BankAccounts');
 
-const virtualu2fToken = require('../../u2ftoken');
+const virtualu2fToken = require('../../u2f-virtualtoken');
 var URLSafeBase64 = require('urlsafe-base64');
 const crypto = require('crypto');
 const parser = require('tder')

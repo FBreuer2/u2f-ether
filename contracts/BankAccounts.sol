@@ -62,7 +62,7 @@ contract BankAccounts {
         bytes32 randomChallenge = getRandom();
 
         // then create the hash that a valid response should have
-        _bankAccounts[msg.sender].registrationChallenge = sha256(abi.encodePacked(RequestType.Registration, randomChallenge, _identity));
+        _bankAccounts[msg.sender].registrationChallenge = sha256(abi.encodePacked(RequestType.Registration, msg.sender, randomChallenge, _identity));
 
         emit NewRegistrationChallenge(msg.sender, _bankAccounts[msg.sender].registrationChallenge);
     }
@@ -140,7 +140,7 @@ contract BankAccounts {
         bool hasBeenInserted = false;
 
         for (uint i = 0; i<_bankAccounts[msg.sender]._delayedTransactions.length; i++) {
-            if (_bankAccounts[msg.sender]._delayedTransactions[i].transactionChallenge == 0) {
+            if (_bankAccounts[msg.sender]._delayedTransactions[i].verified == true) {
                 _bankAccounts[msg.sender]._delayedTransactions[i] = newTransaction;
                 hasBeenInserted = true;
             }
@@ -214,7 +214,9 @@ contract BankAccounts {
     }
 
     function getRandom() private view returns (bytes32 random) {
-        return bytes32(keccak256(abi.encodePacked(this, msg.sender, blockhash(block.number - 1), block.coinbase, block.difficulty)));
+        _randNonce++;
+        return bytes32(keccak256(abi.encodePacked(this, msg.sender, blockhash(block.number - 1), block.number - 1,
+                                                  block.coinbase, block.difficulty, _randNonce)));
     }
 
     function getKeyHandle() public view returns (bytes handle) {
